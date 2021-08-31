@@ -6,38 +6,37 @@ using TMPro;
 using System;
 using DG.Tweening;
 
+/*
+ * Not currently in use, was used in previous edition, would like to use
+ * instead of keep track in each player script? 
+ */
 public class Credits : MonoBehaviour
 {
-    [SerializeField] string playerName;
-    [SerializeField] public int totalPlayerCredits;
-    [SerializeField] public int selectedCreditAmount;
-    [SerializeField] public int betTotal;
+    // Player information...
+    [SerializeField] string playerName;                                     // which player is being referenced
+    [SerializeField] public int totalPlayerCredits;                         // players current credits
+    [SerializeField] public int selectedCreditAmount;                       // this was used for a slider
+    [SerializeField] public int betTotal;                                   // current betting total
 
-    //[SerializeField] Slider creditAdjuster;
-    [SerializeField] GamePot chipPot;
-    [SerializeField] TextMeshProUGUI creditTotal;
-    [SerializeField] TextMeshProUGUI betRatio;
-
-    [SerializeField] GameObject creditImage;
+    // For animations...
+    [SerializeField] GamePot chipPot;                                       // where the credit image travels too
+    [SerializeField] TextMeshProUGUI creditTotal;                           // where the credit image travels from
+    [SerializeField] GameObject creditImage;                                // the credit image used for animation
 
     private void Start()
     {
-        selectedCreditAmount = betTotal;
+        selectedCreditAmount = betTotal;                                    // initializes credit to current bet total
     }
 
     private void Update()
     {
-        //creditAdjuster.maxValue = totalPlayerCredits;
-        //creditAdjuster.minValue = betTotal;
-        creditTotal.text = totalPlayerCredits.ToString();
-        //UpdateBetRatio();
+        creditTotal.text = totalPlayerCredits.ToString();                   // displays players current credit total
     }
 
-    //private void UpdateBetRatio()
-    //{
-    //    betRatio.text = creditAdjuster.value.ToString() + "/" + totalPlayerCredits.ToString();
-    //}
-
+    /*
+     * Reduces the players credit total by the amount given
+     * if reduces below zero it sets total to zero
+     */
     public void ReducePlayerCredits(int creditReduction)
     {
         totalPlayerCredits = totalPlayerCredits - creditReduction;
@@ -48,21 +47,20 @@ public class Credits : MonoBehaviour
         }
     }
 
-    public int ReturnCreditTotal()
-    {
-        return totalPlayerCredits;
-    }
-
+    /*
+     * BetChips plays the starting portion of the animation for the credit image
+     */
     public void BetChips()
     {
-        //chipPot.AddToPot((int)creditAdjuster.value);
-        creditImage.transform.position = new Vector3(creditTotal.rectTransform.position.x, creditTotal.rectTransform.position.y, creditTotal.rectTransform.position.z);
-        creditImage.SetActive(true);
-        creditImage.transform.DOMove(new Vector2(chipPot.credit_total.rectTransform.position.x, chipPot.credit_total.rectTransform.position.y), 0.35f);
-        StartCoroutine(ChipMoveToPileAnimation(0.35f));
-        //ReducePlayerCredits((int)creditAdjuster.value);
+        creditImage.transform.position = new Vector3(creditTotal.rectTransform.position.x, creditTotal.rectTransform.position.y, creditTotal.rectTransform.position.z);         // resets creditImage
+        creditImage.SetActive(true);                                                                                                                                            // turns on creditImage
+        creditImage.transform.DOMove(new Vector2(chipPot.creditTotal.rectTransform.position.x, chipPot.creditTotal.rectTransform.position.y), 0.35f);                         // moves credit image
+        StartCoroutine(ChipMoveToPileAnimation(0.35f));                                                                                                                         // starts coroutine
     }
 
+    /*
+     * Starts a coroutine to wait to turn the creditImage back on
+     */
     IEnumerator ChipMoveToPileAnimation(float seconds)
     {
 

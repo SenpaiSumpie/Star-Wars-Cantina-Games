@@ -7,6 +7,10 @@ using DG.Tweening;
 using UnityEngine.UI;
 using Sirenix.OdinInspector;
 
+
+/*
+ * Second iteration of MAINGAMEPLAYSABACC.cs <- this is the current game
+ */
 public class PreSabaccGameplay : MonoBehaviour
 {
     // This is the deck for pre-sabacc deck, will utilize for later gameplay
@@ -102,7 +106,7 @@ public class PreSabaccGameplay : MonoBehaviour
         deck_top_value = deck_top_value - 1;
         top_of_deck = current_deck[deck_top_value];
         // set this to cardFace to see image of what card to be next
-        top_deck_image.sprite = top_of_deck.cardBack;
+        top_deck_image.sprite = top_of_deck.ReturnCardBack();
 
         this.GetComponent<PlayerHand>().UpdateCurrentCardHand(playerCharacter);
 
@@ -135,7 +139,7 @@ public class PreSabaccGameplay : MonoBehaviour
     public void Discard_Card(int card_to_discard)
     {
         // grab cardFace image so we can discard the card from the hand
-        Sprite cached_sprite = card_hand[card_to_discard].cardFace;
+        Sprite cached_sprite = card_hand[card_to_discard].ReturnCardFace();
 
         // grab the Vector 3 of the cardToDiscard
         Vector3 cachedDiscardLocation = new Vector3(cardToDiscard.transform.position.x, cardToDiscard.transform.position.y, cardToDiscard.transform.position.z);
@@ -180,7 +184,7 @@ public class PreSabaccGameplay : MonoBehaviour
             current_deck[index] = pre_sabacc_deck.GetIndex(index);
         }
         // set this to cardFace to see which card
-        top_deck_image.sprite = current_deck[deck_size - 1].cardBack;
+        top_deck_image.sprite = current_deck[deck_size - 1].ReturnCardBack();
 
         deck_top_value = deck_size - 1;
 
@@ -192,7 +196,7 @@ public class PreSabaccGameplay : MonoBehaviour
         yield return new WaitForSeconds(seconds);
         top_discard_image.enabled = true;
 
-        top_discard_image.sprite = current_deck[deck_size - 1].cardBack;
+        top_discard_image.sprite = current_deck[deck_size - 1].ReturnCardBack();
 
         top_discard_image.transform.position = cachedDiscardLocation;
     }
@@ -265,7 +269,7 @@ public class PreSabaccGameplay : MonoBehaviour
             }
         }
         // set this to cardFace to see what card you're getting
-        top_deck_image.sprite = current_deck[deck_size - 1].cardBack;
+        top_deck_image.sprite = current_deck[deck_size - 1].ReturnCardBack();
         deck_top_value = deck_size - 1;
         top_of_deck = current_deck[deck_size - 1];
 

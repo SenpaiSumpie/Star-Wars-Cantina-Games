@@ -6,60 +6,66 @@ using UnityEngine.UI;
 
 public class EnlargeCard : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
 {
-    [SerializeField] GameObject audio_source;
-    GameObject game_manager;
-    //RectTransform this_card;
-    [SerializeField] public int current_index;
-    Vector3 cached_current_scale;
-    [SerializeField] public Material outline;
+    // variables for use throughout the code
+    [SerializeField] GameObject audioSource;                                // audioSource is the cardHover sound which plays on hover
+    GameObject gameManager;                                                 // GameManager is where the sabacc gameplay script is located
+    [SerializeField] public int currentIndex;                               // current index is which card is being hovered on or selected
+    Vector3 cachedCurrentScale;                                             // cached scale for use of returning back to the same size
+    [SerializeField] public Material outline;                               // outline effect to display around card
 
     // Start is called before the first frame update
     void Start()
     {
-        //sibling_index = GetComponent<RectTransform>().GetSiblingIndex();
-        //sibling_index = this_card.GetComponent<Transform>().GetSiblingIndex();
-        cached_current_scale = transform.localScale;
-        Debug.Log(transform.localScale);
-        game_manager = GameObject.FindWithTag("GameController");
-        audio_source = GameObject.FindWithTag("CardHover");
-        outline = game_manager.GetComponent<MainGameplaySabacc>().outlineEffect;
-        //outline = Resources.Load("Image", typeof(Material)) as Material;
+        cachedCurrentScale = transform.localScale;                                      // grabs the current scale of the card
+        gameManager = GameObject.FindWithTag("GameController");                         // sets the gameManager to the correct object
+        audioSource = GameObject.FindWithTag("CardHover");                              // sets the audioSource to correct card sound
+        outline = gameManager.GetComponent<MainGameplaySabacc>().outlineEffect;         // grabs the outline effect
     }
 
+    /*
+     * Called when pointer enters a cards outline
+     */
     public void OnPointerEnter(PointerEventData eventData)
     {
-        Debug.Log("Pointer entered card");
-        audio_source.GetComponent<AudioSource>().Play();
+        // plays the card hover sound
+        audioSource.GetComponent<AudioSource>().Play();
+
+        // applies the outline effect
         GetComponent<Image>().material = outline;
-        //cards_image = card_to_add.AddComponent<Image>();
+        
+        // enlarges the card
         transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
+
+        // moves the card up from current position to see it better
         transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y + 40.0f, transform.localPosition.z);
     }
 
+    /*
+     * Called when pointer exits a cards outline
+     */
     public void OnPointerExit(PointerEventData eventData)
     {
-        Debug.Log("Pointer exited card");
+        // removes outline effect
         GetComponent<Image>().material = null;
-        transform.localScale = cached_current_scale;
+
+        // returns card to 'normal'
+        transform.localScale = cachedCurrentScale;
+
+        // resets card's position
         transform.localPosition = new Vector3(transform.localPosition.x, transform.localPosition.y - 40.0f, transform.localPosition.z);
     }
 
+    /*
+     * Called when player clicks on a card
+     */
     public void OnPointerClick(PointerEventData eventData)
     {
-        Debug.Log("Pointer clicked card");
-        //int new_index;
-        if (game_manager.GetComponent<MainGameplaySabacc>().discardOn)
+        // if the player can discard a card
+        if (gameManager.GetComponent<MainGameplaySabacc>().discardOn)
         {
-           /* new_index = sibling_index - game_manager.GetComponent<PreSabaccGameplay>().card_hand.Count - 1;
-            if( new_index < 0 )
-            {
-                new_index = new_index * -1;
-            }
-            Debug.Log("Sibling Index to discard" + sibling_index);
-            Debug.Log("NEW IMPROVED INDEX" + new_index);
-           */
-            game_manager.GetComponent<MainGameplaySabacc>().DiscardCard(game_manager.GetComponent<MainGameplaySabacc>().players[0], current_index);
-            game_manager.GetComponent<MainGameplaySabacc>().PickedCard();
+            // discards the selected card
+            gameManager.GetComponent<MainGameplaySabacc>().DiscardCard(gameManager.GetComponent<MainGameplaySabacc>().players[0], currentIndex);
+            gameManager.GetComponent<MainGameplaySabacc>().PickedCard();
         }
   
     }
