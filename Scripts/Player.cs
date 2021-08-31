@@ -116,7 +116,7 @@ public class Player : MonoBehaviour
 
         for(index = 0; index < cardHand.Count; index++)
         {
-            tempHandValue = tempHandValue + cardHand[index].cardValue;
+            tempHandValue = tempHandValue + cardHand[index].ReturnCardValue();
         }
 
         // set the hand value
@@ -150,7 +150,7 @@ public class Player : MonoBehaviour
         // fairy empress
         if(cardHand.Count == 2)
         {
-            if(cardHand[0].cardName == "The Queen of Air and Darkness" && cardHand[1].cardName == "The Queen of Air and Darkness")
+            if(cardHand[0].ReturnCardName() == "The Queen of Air and Darkness" && cardHand[1].ReturnCardName() == "The Queen of Air and Darkness")
             {
                 fairyEmpress = true;
             }
@@ -163,11 +163,11 @@ public class Player : MonoBehaviour
         // idiots array
         if(cardHand.Count == 3)
         {
-            if(cardHand[0].cardName == "The Idiot" || cardHand[1].cardName == "The Idiot" || cardHand[2].cardName == "The Idiot")
+            if(cardHand[0].ReturnCardName() == "The Idiot" || cardHand[1].ReturnCardName() == "The Idiot" || cardHand[2].ReturnCardName() == "The Idiot")
             {
-                if(cardHand[0].cardName == "Two" || cardHand[1].cardName == "Two" || cardHand[2].cardName == "Two")
+                if(cardHand[0].ReturnCardName() == "Two" || cardHand[1].ReturnCardName() == "Two" || cardHand[2].ReturnCardName() == "Two")
                 {
-                    if(cardHand[0].cardName == "Three" || cardHand[1].cardName == "Three" || cardHand[2].cardName == "Three")
+                    if(cardHand[0].ReturnCardName() == "Three" || cardHand[1].ReturnCardName() == "Three" || cardHand[2].ReturnCardName() == "Three")
                     {
                         idiotsArray = true;
                     }
@@ -235,9 +235,6 @@ public class Player : MonoBehaviour
         int index, valueOfCards = 0;
         Quaternion tempRotation;
 
-        //panel = playerToUpdate.handLocation;
-        //current_hand = playerToUpdate.cardHand;
-
         foreach (Transform child in handLocation.transform)
         {
             GameObject.Destroy(child.gameObject);
@@ -260,7 +257,7 @@ public class Player : MonoBehaviour
 
         for (index = 0; index < cardHand.Count; index++)
         {
-            valueOfCards = valueOfCards + cardHand[index].cardValue;
+            valueOfCards = valueOfCards + cardHand[index].ReturnCardValue();
 
             cardToAdd = new GameObject();
             cardToAdd.AddComponent<CanvasRenderer>();
@@ -269,27 +266,23 @@ public class Player : MonoBehaviour
 
             if (this.playerType == Player.PlayerType.PLAYER)
             {
-                cardsImage.sprite = cardHand[index].cardFace;
+                cardsImage.sprite = cardHand[index].ReturnCardFace();
                 cardsImage.rectTransform.sizeDelta = new Vector2(250, 330);
             }
             else if (this.playerType == Player.PlayerType.AI)
             {
                 if(revealCards == true)
                 {
-                    cardsImage.sprite = cardHand[index].cardFace;
+                    cardsImage.sprite = cardHand[index].ReturnCardFace();
                     cardsImage.rectTransform.sizeDelta = new Vector2(250, 330);
                 }
                 else
                 {
-                    cardsImage.sprite = cardHand[index].cardBack;
+                    cardsImage.sprite = cardHand[index].ReturnCardBack();
                     cardsImage.rectTransform.sizeDelta = new Vector2(50, 66);
                 }
                 
             }
-
-            //cardsImage.sprite = cardHand[index].cardFace;
-
-            //cardsImage.rectTransform.sizeDelta = new Vector2(250, 330);
             cardToAdd.GetComponent<RectTransform>().SetParent(handLocation.transform);
             cardToAdd.SetActive(true);
 
@@ -297,12 +290,11 @@ public class Player : MonoBehaviour
             {
                 cardToAdd.GetComponent<Image>().raycastTarget = true;
                 cardToAdd.AddComponent<EnlargeCard>();
-                cardToAdd.GetComponent<EnlargeCard>().current_index = index;
+                cardToAdd.GetComponent<EnlargeCard>().currentIndex = index;
             }
 
             tempRotation = GetRotation(cardToAdd, index);
             cardToAdd.transform.rotation = tempRotation;
-            //card_to_add.AddComponent<AllIn1Shader>();
         }
 
         if(this.playerType == Player.PlayerType.PLAYER)

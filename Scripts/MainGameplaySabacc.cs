@@ -37,7 +37,6 @@ public class MainGameplaySabacc : MonoBehaviour
         PLAYING,
         FINISHED
     };
-
     sabaccGameStates gameStates = sabaccGameStates.PLAYING;
 
     // used to loop through the number of players for every turn
@@ -73,10 +72,12 @@ public class MainGameplaySabacc : MonoBehaviour
     [SerializeField] TextMeshProUGUI playerUsername;
     [SerializeField] PlayerProfile playerCharacter;
 
+    // Game pots for betting into
     [Title("Game Pots")]
     [SerializeField] GamePot sabaccPot;
     [SerializeField] GamePot handPot;
 
+    // bools for keeping track of various stages of the game
     bool buttonPressed = false;
     bool pickedCardToDiscard = false;
     public bool discardOn = false;
@@ -93,21 +94,571 @@ public class MainGameplaySabacc : MonoBehaviour
     [Title("Dice Script")]
     [SerializeField] Dice sabaccDice;
 
+    // how many credits should each player start with?
     [Title("Starting Credits")]
     [SerializeField] int startingCredits = 2000;
 
+    // objects for credit animations
     [Title("Credit Animation Items")]
     [SerializeField] GameObject creditImage;
     [SerializeField] GameObject creditExchangeClip;
     [SerializeField] GameObject creditWinClip;
 
+    // the game information text, "whats going on from stage to stage"
     [Title("Game Informer")]
     [SerializeField] TextMeshProUGUI gameInformation;
 
+    // information to help the player make better decisions
     [Title("Betting Round Text for Player")]
     [SerializeField] TextMeshProUGUI callValueText;
     [SerializeField] TextMeshProUGUI raiseValueText;
     [SerializeField] TextMeshProUGUI allInValueText;
+
+    /*
+     * FUNCTION LIST:
+     * AllInChoice
+     * BetAnimation
+     * BombOut
+     * ButtonPressed
+     * CallChoice
+     * DealCard
+     * DealCardPart2
+     * DiscardCard
+     * DiscardCardAnimation
+     * DisplayGameWinningScreen
+     * DisplayOptionsForRound
+     * GetBestAIBetOption
+     * GetBetAITradeOption
+     * HandPotAnimation
+     * HidePlayerHand
+     * InitializeDeck
+     * MoveOntoNextPlayer
+     * PayBlind
+     * PaySabaccPayment
+     * PickedCard
+     * RaiseChoice
+     * RemoveOptionsForRound
+     * RevealPlayerHand
+     * RollDice
+     * SabaccPotAnimation
+     * SetPlayersCreditTotal()
+     * ShuffleDeck
+     * Start
+     * StartGame
+     * UpdateTotalAmountBetted
+     */
+    
+    /*
+     * If a player chooses all in then they bet all their chips
+     */
+    private void AllInChoice(Player player)
+    {
+        // bet all the players chips
+        player.BetChips(player.credits, handPot);
+
+        // Updates players credit total better
+        UpdateTotalAmountBetted(player, player.credits);
+    }
+
+    /*
+     * Displays the bet animation, previously in Credits.cs
+     */
+    private void BetAnimation(Player player, GamePot potToBetTo)
+    {
+        // play audio clip of betting
+        creditExchangeClip.GetComponent<AudioSource>().Play();
+        
+        // moves credit image to players credit total amount location
+        creditImage.transform.position = new Vector3(player.GetCreditText().rectTransform.position.x, player.GetCreditText().rectTransform.position.y, player.GetCreditText().rectTransform.position.z);
+
+        // turns on the credit image
+        creditImage.SetActive(true);
+        
+        // tweens the credit image to the new pot location
+        creditImage.transform.DOMove(new Vector2(potToBetTo.creditTotal.rectTransform.position.x, potToBetTo.creditTotal.rectTransform.position.y), 0.35f);
+    }
+
+    /*
+     * Player has bombed out so they must pay 10% of winning pot to the sabacc pot
+     */
+    private void BombOut(Player player)
+    {
+        // determines 10% of winning pot
+        int bombOutAmount = handPot.potTotal / 10;
+
+        // checks to see if bombing out is more than the player has
+        if (bombOutAmount > player.credits)
+        {
+            bombOutAmount = player.credits;
+        }
+
+        // pay the 10% to the sabacc pot
+        player.BetChips(bombOutAmount, sabaccPot);
+    }
+
+    // Button pressed is used for buttons in game to call and set button pressed to true
+    public void ButtonPressed()
+    {
+        buttonPressed = true;
+    }
+
+    /*
+     * Player has called the current betting amount
+     */
+    private void CallChoice(Player player, int currentAmountToBet)
+    {
+        // determines the amount of credits to bet
+        int callValue = currentAmountToBet - player.amountBettedThisRound;
+        
+        // bets the total amount
+        player.BetChips(callValue, handPot);
+
+        // updates the player total credit value
+        UpdateTotalAmountBetted(player, callValue);
+    }
+
+    // deals card to specific player
+    private void DealCard(Player player)
+    {
+        // adds a card to the specific player hand
+        player.cardHand.Add(topOfDeck);
+
+        // plays the animation of the dealing card
+        topDeckImage.rectTransform.DOMove(new Vector2(player.handLocation.transform.position.x, player.handLocation.transform.position.y), 0.35f);
+
+        // plays sound of dealing card
+        addCardClip.GetComponent<AudioSource>().Play();
+    }
+
+    /*
+     * finishes dealing card to the player,
+     * this is in two parts so i can WaitForSeconds in between
+     */
+    private void DealCardPart2(Player player)
+    {
+        // from DealCardAnimation
+        topDeckImage.rectTransform.position = deckVector3.transform.position;
+        topDeckImage.enabled = true;
+
+        // sets new top of deck value
+        deckTopValue = deckTopValue - 1;
+        topOfDeck = currentDeck[deckTopValue];
+
+        // set this to cardFace to see image of what card to be next
+        topDeckImage.sprite = topOfDeck.ReturnCardBack();
+
+        // updates players hand with new card
+        player.UpdateCurrentCardHand();
+    }
+
+    /*
+     * discards a card from the player
+     */
+    public void DiscardCard(Player player, int cardIndexToDiscard)
+    {
+        // grab cardFace image so we can discard the card from the hand
+        Sprite cachedSprite = player.cardHand[cardIndexToDiscard].ReturnCardFace();
+
+        // grab the Vector 3 of the cardToDiscard
+        Vector3 cachedDiscardLocation = new Vector3(player.handLocation.transform.position.x, player.handLocation.transform.position.y, player.handLocation.transform.position.z);
+        cardToDiscard.transform.position = new Vector3(player.handLocation.transform.position.x, player.handLocation.transform.position.y, player.handLocation.transform.position.z);
+
+        // set the top_of_discard equal to the new card
+        topOfDiscard = player.cardHand[cardIndexToDiscard];
+
+        // removes the card from the hand
+        player.cardHand.RemoveAt(cardIndexToDiscard);
+
+        // updates the cards in the hand
+        player.UpdateCurrentCardHand();
+
+        // sets the card to Discard image = to the cached sprite
+        cardToDiscard.GetComponent<Image>().sprite = cachedSprite;
+
+        // sets it to true so it can be seen moving
+        cardToDiscard.SetActive(true);
+
+        // moves the card to the vector2 of the discard pile
+        cardToDiscard.transform.DOMove(new Vector2(discardVector3.transform.position.x, discardVector3.transform.position.y), 0.25f);
+
+        // waits for the given time then sets the discarded card to false and resets its position
+        StartCoroutine(DiscardCardAnimation(0.25f, cardIndexToDiscard, cachedDiscardLocation));
+
+        // plays discard sound
+        cardDiscardClip.GetComponent<AudioSource>().Play();
+
+        // sets the top of the discard pile to the new image
+        topDiscardImage.sprite = cachedSprite;
+
+        // changes the discard value, i think this is obselete. ** CAN REMOVE**
+        discardTopValue++;
+    }
+
+    /*
+     * Plays the discard card animation, properly Ienumerator would be in StartGame
+     */
+    IEnumerator DiscardCardAnimation(float seconds, int cardIndexToDiscard, Vector3 cachedDiscardLocation)
+    {
+        // waits for designated amount of time
+        yield return new WaitForSeconds(seconds);
+
+        // sets card to not active and restores its discard position
+        cardToDiscard.SetActive(false);
+        cardToDiscard.transform.position = cachedDiscardLocation;
+    }
+
+    /*
+     * Displays the end of the game
+     */
+    private void DisplayGameWinningScreen(Player player)
+    {
+        // if the player has a vocal queue play the victory chant
+        if (player.hasVocalQueues)
+        {
+            player.PlayVictory();
+        }
+
+        playerWinsText.text = player.thisPlayerName + " wins!";                     // state who has won
+        gameOverScreen.GetComponent<CanvasGroup>().DOFade(1, 1f);                   // fades the menu in
+        gameOverScreen.GetComponent<CanvasGroup>().interactable = true;             // sets it to interactable
+        gameOverScreen.GetComponent<CanvasGroup>().blocksRaycasts = true;           // blocks raycasts
+    }
+
+    // Displays the various game menus 
+    private void DisplayOptionsForRound(GameObject menu)
+    {
+        uiPrompt.GetComponent<AudioSource>().Play();                            // plays audio source for displaying menu
+        menu.GetComponent<CanvasGroup>().DOFade(1, 1f);                         // fades the menu in
+        menu.GetComponent<CanvasGroup>().interactable = true;                   // makes the menu interactable
+        menu.GetComponent<CanvasGroup>().blocksRaycasts = true;                 // blocks raycasts
+    }
+
+    /*
+     * Function to determine what the AI should pick for betting
+     * not the best function, just a quick easy solution IMO
+     */
+    private void GetBestAIBetOption(Player player, int currentAmountToBet)
+    {
+        // gets a random value to simulate various player choices
+        int random = Random.Range(0, player.distanceFrom23 + 4);
+        int callValue = currentAmountToBet - player.amountBettedThisRound;
+
+        // if the player has a hand greater than 23away from the goal then they should FOLD
+        if (player.distanceFrom23 >= 23)
+        {
+            player.betChoice = Player.BettingChoice.FOLD;
+        }
+        // if the player is 1-5 from the goal and random is the same value then RAISE
+        else if (random == player.distanceFrom23 && player.distanceFrom23 >= 1 && player.distanceFrom23 <= 5)
+        {
+            player.betChoice = Player.BettingChoice.RAISE;
+        }
+        // if the player has 23 exactly then ALL IN, random also needs to equal 0
+        else if (player.distanceFrom23 == 0 && random == 0)
+        {
+            player.betChoice = Player.BettingChoice.ALLIN;
+        }
+        else
+        {
+            // if the call amount is 0 then player will CHECK
+            if (callValue == 0)
+            {
+                player.betChoice = Player.BettingChoice.CHECK;
+            }
+            // otherwise they will CALL
+            else
+            {
+                player.betChoice = Player.BettingChoice.CALL;
+            }
+        }
+    }
+
+    /*
+     * Function to determine what the AI should pick for trading
+     * not the best function, just a quick easy solution IMO
+     */
+    private void GetBestAITradeOption(Player player)
+    {
+        // gets a random value for simulating player choice
+        int random = Random.Range(1, 10);
+
+        // if the players hand needs work it TRADES a card
+        if (player.distanceFrom23 > 15)
+        {
+            player.tradeChoice = Player.TradingChoice.TRADE;
+        }
+        // if its close but not quite it ADDS a card
+        else if (player.distanceFrom23 > 7)
+        {
+            player.tradeChoice = Player.TradingChoice.ADD;
+        }
+        // if its really close it STANDS
+        else if (player.distanceFrom23 > 2)
+        {
+            player.tradeChoice = Player.TradingChoice.STAND;
+        }
+        else
+        {
+            // STANDS if close to 23 and random is less than 5 50% chance
+            if (random < 5)
+            {
+                player.tradeChoice = Player.TradingChoice.STAND;
+            }
+            // calls the game otherwise
+            else
+            {
+                player.tradeChoice = Player.TradingChoice.ALDERAAN;
+            }
+        }
+    }
+
+    // Shows Hand pot animation Player winning a round
+    private void HandPotAnimation(Player player, GamePot potToBetTo)
+    {
+        // plays audio source
+        creditWinClip.GetComponent<AudioSource>().Play();
+
+        // sets credit images position
+        creditImage.transform.position = new Vector3(potToBetTo.creditTotal.rectTransform.position.x, potToBetTo.creditTotal.rectTransform.position.y, potToBetTo.creditTotal.rectTransform.position.z);
+        
+        // sets credits image to true
+        creditImage.SetActive(true);
+
+        // moves the credit image
+        creditImage.transform.DOMove(new Vector2(player.GetCreditText().rectTransform.position.x, player.GetCreditText().rectTransform.position.y), 0.35f);
+    }
+
+    /*
+     * hides the given players hand
+     */
+    private void HidePlayerHand(Player player)
+    {
+        // sets the bool saying the cards aren't revealed
+        player.revealCards = false;
+
+        // updates player hand cards
+        player.UpdateCurrentCardHand();
+        
+        // plays audio source
+        cardFlipClip.GetComponent<AudioSource>().Play();
+    }
+
+    /*
+     * Sets the generated card deck equal to the predetermined sabacc deck
+     */
+    public void InitializeDeck()
+    {
+        // temp index
+        int index;
+
+        for (index = 0; index < deckSize; index++)
+        {
+            // assigns every currentDeck index = to the preSabaccDeck
+            currentDeck[index] = preSabaccDeck.GetIndex(index);
+        }
+
+        // set to cardFace to see if what the top card is
+        topDeckImage.sprite = currentDeck[deckSize - 1].ReturnCardBack();
+        deckTopValue = deckSize - 1;
+        topOfDeck = currentDeck[deckSize - 1];
+    }
+
+    // Fancy function to determine who the next player in line is
+    private int MoveOntoNextPlayer(int player)
+    {
+        // sets nextPlayer equal to the next player
+        int nextPlayer = player + 1;
+
+        // if the nextPlayer is not in the players it resets to the first player
+        if (nextPlayer >= players.Count)
+        {
+            nextPlayer = 0;
+        }
+        return nextPlayer;
+    }
+
+    /*
+     * Pay blind payment at beginning of round
+     */
+    private void PayBlind(Player player, int blindPayment)
+    {
+        // move the credit chip
+        // still need to add the animation
+        // reduce player chip count and add it to the pot
+        player.BetChips(blindPayment, handPot);
+    }
+
+    /*
+     * Sabacc payment is also at beginning of round, every player pays this
+     */
+    private void PaySabaccPayment(Player player, int sabaccPayment)
+    {
+        // still need to add the animation
+        player.BetChips(sabaccPayment, sabaccPot);
+
+    }
+
+    /*
+     * player has picked a card to discard
+     */
+    public void PickedCard()
+    {
+        pickedCardToDiscard = true;
+    }
+
+    /*
+     * The player has chosen to raise
+     */
+    private void RaiseChoice(Player player, int currentAmountToBet)
+    {
+        int callValue = currentAmountToBet - player.amountBettedThisRound;
+        player.BetChips(callValue, handPot);
+
+        UpdateTotalAmountBetted(player, callValue);
+    }
+
+    /*
+     * Remove a game menu from sight
+     */
+    private void RemoveOptionsForRound(GameObject menu)
+    {
+        uiExit.GetComponent<AudioSource>().Play();
+        menu.GetComponent<CanvasGroup>().DOFade(0, 1f);
+        menu.GetComponent<CanvasGroup>().interactable = false;
+        menu.GetComponent<CanvasGroup>().blocksRaycasts = false;
+    }
+
+    /*
+     * Reveals the specific players hand
+     */
+    private void RevealPlayerHand(Player player)
+    {
+        player.revealCards = true;
+        player.UpdateCurrentCardHand();
+        cardFlipClip.GetComponent<AudioSource>().Play();
+    }
+
+    /*
+     * Rolls the Sabacc Dice
+     */
+    private void RollDice()
+    {
+        sabaccDice.RollDice();
+    }
+
+    /*
+     * Plays the animation for the SabaccPot Winning
+     */
+    private void SabaccPotAnimation(Player player, GamePot potToBetTo)
+    {
+        creditWinClip.GetComponent<AudioSource>().Play();
+        creditImage.transform.position = new Vector3(potToBetTo.creditTotal.rectTransform.position.x, potToBetTo.creditTotal.rectTransform.position.y, potToBetTo.creditTotal.rectTransform.position.z);
+        creditImage.SetActive(true);
+        creditImage.transform.DOMove(new Vector2(player.GetCreditText().rectTransform.position.x, player.GetCreditText().rectTransform.position.y), 0.35f);
+    }
+
+    /*
+     * Set the player credit total
+     */
+    private void SetPlayersCreditTotal()
+    {
+        int index;
+        for (index = 0; index < players.Count; index++)
+        {
+            players[index].credits = startingCredits;
+        }
+    }
+
+    /*
+     * Removes all cards from the players and then preforms a shuffle of the deck
+     * I never remove cards from the deck itself I just make them inaccessable so 
+     * this just reshuffles the deck that is already existing.
+     */
+    public IEnumerator ShuffleDeck()
+    {
+        int randomizedValue, index;
+
+        int[] alreadyGeneratedValues = new int[deckSize];
+
+        // wait to not immediately 'shuffle the deck'
+        yield return new WaitForSeconds(2f);
+
+        // if there is a card in the discard pile
+        if (discardTopValue > 0)
+        {
+            Vector3 cachedDiscardLocation = new Vector3(topDiscardImage.transform.position.x, topDiscardImage.transform.position.y, topDiscardImage.transform.position.z);
+            cardDiscardClip.GetComponent<AudioSource>().Play();
+            topDiscardImage.transform.DOMove(new Vector2(deckVector3.transform.position.x, deckVector3.transform.position.y), 0.45f);
+            topDiscardImage.enabled = false;
+
+            yield return new WaitForSeconds(0.45f);
+
+            topDiscardImage.enabled = true;
+            topDiscardImage.sprite = currentDeck[deckSize - 1].ReturnCardBack();
+            topDiscardImage.transform.position = cachedDiscardLocation;
+        }
+
+        for (index = 0; index < players.Count; index++)
+        {
+            if (players[index].cardHand.Count > 0)
+            {
+                Vector3 cachedCardLocation = new Vector3(cardToDiscard.transform.position.x, cardToDiscard.transform.position.y, cardToDiscard.transform.position.z);
+                cardDiscardClip.GetComponent<AudioSource>().Play();
+
+                // activate the card to discard and move it to the current players hand
+                cardToDiscard.SetActive(true);
+                cardToDiscard.transform.position = new Vector3(players[index].handLocation.transform.position.x, players[index].handLocation.transform.position.y, players[index].handLocation.transform.position.z);
+
+                // moves card to the deck
+                cardToDiscard.transform.DOMove(new Vector2(deckVector3.transform.position.x, deckVector3.transform.position.y), 0.45f);
+                yield return new WaitForSeconds(0.45f);
+
+                cardToDiscard.SetActive(false);
+                cardToDiscard.transform.position = cachedCardLocation;
+
+                // clear card hand
+                players[index].cardHand.Clear();
+
+                // Updates each players current card hand
+                // pass in the player index so in Update Current Card Hand
+                // I can set panel = players[index].handLocation
+                // and current hand = to players[index].cardHand
+                players[index].UpdateCurrentCardHand();
+            }
+        }
+
+        Card[] tempDeck = currentDeck;
+        discardPile = new Card[deckSize];
+        currentDeck = new Card[deckSize];
+        // I clear each hand in the above step
+
+        // play shuffle sound
+        shuffleCardsClip.GetComponent<AudioSource>().Play();
+
+        // rotates back image of deck to give impression of shuffling
+        backgroundDeckImage.transform.DORotate(new Vector3(backgroundDeckImage.transform.rotation.x, backgroundDeckImage.transform.rotation.y, backgroundDeckImage.transform.rotation.z + 360), 1f, RotateMode.FastBeyond360).SetRelative(true);
+
+        for (index = 0; index < deckSize; index++)
+        {
+            alreadyGeneratedValues[index] = deckSize;
+        }
+
+        index = 0;
+        while (index < deckSize)
+        {
+            randomizedValue = Random.Range(0, deckSize);
+            if (!alreadyGeneratedValues.Contains<int>(randomizedValue))
+            {
+                alreadyGeneratedValues[index] = randomizedValue;
+                currentDeck[index] = tempDeck[randomizedValue];
+                index++;
+            }
+        }
+
+        topDeckImage.sprite = currentDeck[deckSize - 1].ReturnCardBack();
+        deckTopValue = deckSize - 1;
+        topOfDeck = currentDeck[deckSize - 1];
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -120,29 +671,29 @@ public class MainGameplaySabacc : MonoBehaviour
         // set deckSize, dosen't get changed after
         deckSize = preSabaccDeck.ReturnDeckSize();
 
+
         SetPlayersCreditTotal();
 
         // create the currentDeck for use throughout the game
         currentDeck = new Card[deckSize];
 
+        // Initialize currentDeck with the cards from the sabacc deck
         InitializeDeck();
 
+        // Shuffles the deck (or else it would be just cards in order, thats no fun!)
         StartCoroutine(ShuffleDeck());
 
+        // starts the game that the player will play, only time this is called is at the start of this level
         StartCoroutine(StartGame());
     }
 
-    private void SetPlayersCreditTotal()
+    /*
+     * Main Game Loop, runs through the main phases of Sabacc,
+     * these include betting, trading, and the dice round.
+     */
+    private IEnumerator StartGame()
     {
-        int index;
-        for(index = 0; index < players.Count; index++)
-        {
-            players[index].credits = startingCredits;
-        }
-    }
-
-    public IEnumerator StartGame()
-    {
+        // Variables for use throughout the function
         int playerWhoStarts = 0;
         int playerWhoCalledAlderaan = playerWhoStarts;
         int index, cards, playersWhoAreOut, playerWhoWonIndex = playerWhoStarts;
@@ -151,27 +702,29 @@ public class MainGameplaySabacc : MonoBehaviour
         int sabaccPayment = 10;
         int blindPayment = 5;
         int currentAmountToBet = 0;
+        int randomPlayer = Random.Range(0, players.Count);
         bool alderaan = false, everyoneChecked = false, noMoreBets;
         bool firstRound = true;
         bool sabaccVictory = false;
         bool newRound = false;
 
+        // Tells the player the game has started
         gameInformation.text = "the game has started!";
         gameInformation.GetComponent<CanvasGroup>().alpha = 1;
 
-        // initial wait to not immidiately start the game
+        // initial wait to not immediately start the game
         yield return new WaitForSeconds(2.5f);
 
         gameInformation.text = "";
 
-        int randomPlayer = Random.Range(0, players.Count);
-
+        // Plays a random voice phrase
         if (players[randomPlayer].hasVocalQueues)
         {
             players[randomPlayer].GameStart();
         }
         yield return new WaitForSeconds(1f);
 
+        // The game has now STARTED!
         while (gameStates != sabaccGameStates.FINISHED)
         {
             // set players to be isOut if credits = 0, and reset 'folded'
@@ -219,7 +772,7 @@ public class MainGameplaySabacc : MonoBehaviour
                         yield return new WaitForSeconds(0.35f);
                         creditImage.SetActive(false);
 
-                        yield return new WaitForSeconds(0.65f);
+                        yield return new WaitForSeconds(0.25f);
                     }
 
                     gameInformation.text = players[index].thisPlayerName + " paid the Sabacc payment.";
@@ -235,10 +788,11 @@ public class MainGameplaySabacc : MonoBehaviour
                     yield return new WaitForSeconds(0.35f);
                     creditImage.SetActive(false);
 
-                    yield return new WaitForSeconds(0.65f);
+                    yield return new WaitForSeconds(0.25f);
                 }
             }
 
+            // keeps going until newRound is true, (after winning
             newRound = false;
             firstRound = true;
             while (!newRound)
@@ -256,15 +810,15 @@ public class MainGameplaySabacc : MonoBehaviour
                             // deal starting hand, needs to be not in a function so I can manipulate
                             // time
                             DealCard(players[tempPlayer]);
-                            yield return new WaitForSeconds(0.35f);
+                            yield return new WaitForSeconds(0.30f);
                             topDeckImage.enabled = false;
-                            yield return new WaitForSeconds(0.35f);
+                            yield return new WaitForSeconds(0.30f);
                             DealCardPart2(players[tempPlayer]);
 
                             DealCard(players[tempPlayer]);
-                            yield return new WaitForSeconds(0.35f);
+                            yield return new WaitForSeconds(0.30f);
                             topDeckImage.enabled = false;
-                            yield return new WaitForSeconds(0.35f);
+                            yield return new WaitForSeconds(0.30f);
                             DealCardPart2(players[tempPlayer]);
                         }
                         tempPlayer = MoveOntoNextPlayer(tempPlayer);
@@ -275,7 +829,7 @@ public class MainGameplaySabacc : MonoBehaviour
                 noMoreBets = false;
 
                 gameInformation.text = "Now we are on the Betting Round!";
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(0.35f);
 
                 // betting round
                 while (!noMoreBets)
@@ -302,7 +856,7 @@ public class MainGameplaySabacc : MonoBehaviour
                                 GetBestAIBetOption(players[tempPlayer], currentAmountToBet);
                             }
 
-                            yield return new WaitForSeconds(0.5f);
+                            yield return new WaitForSeconds(0.35f);
 
 
                             // Safety catch for player being dumb, (me, did this a couple times)
@@ -312,7 +866,7 @@ public class MainGameplaySabacc : MonoBehaviour
 
                                 gameInformation.text = players[tempPlayer].thisPlayerName + " chose CHECK when they have to at least CALL!";
 
-                                yield return new WaitForSeconds(3f);
+                                yield return new WaitForSeconds(2f);
                             }
 
                             if(players[tempPlayer].credits < currentAmountToBet && players[tempPlayer].betChoice == Player.BettingChoice.CALL)
@@ -343,7 +897,7 @@ public class MainGameplaySabacc : MonoBehaviour
                                 everyoneChecked = false;
                                 CallChoice(players[tempPlayer], currentAmountToBet);
 
-                                yield return new WaitForSeconds(0.35f);
+                                yield return new WaitForSeconds(0.30f);
                                 creditImage.SetActive(false);
                             }
                             else if (players[tempPlayer].betChoice == Player.BettingChoice.CHECK)
@@ -362,7 +916,7 @@ public class MainGameplaySabacc : MonoBehaviour
                                 currentAmountToBet = currentAmountToBet * 2;
                                 RaiseChoice(players[tempPlayer], currentAmountToBet);
 
-                                yield return new WaitForSeconds(0.35f);
+                                yield return new WaitForSeconds(0.30f);
                                 creditImage.SetActive(false);
                             }
                             else if (players[tempPlayer].betChoice == Player.BettingChoice.ALLIN)
@@ -371,7 +925,7 @@ public class MainGameplaySabacc : MonoBehaviour
                                 {
                                     players[tempPlayer].PlayGood();
                                 }
-                                yield return new WaitForSeconds(1f);
+                                yield return new WaitForSeconds(0.55f);
 
                                 // play the betting animation
                                 BetAnimation(players[tempPlayer], handPot);
@@ -380,8 +934,7 @@ public class MainGameplaySabacc : MonoBehaviour
                                 gameInformation.text = players[tempPlayer].thisPlayerName + " is going all in!";
                                 everyoneChecked = false;
 
-                                currentAmountToBet = currentAmountToBet + players[tempPlayer].credits;
-                                AllInChoice(players[tempPlayer], currentAmountToBet);
+                                AllInChoice(players[tempPlayer]);
 
                                 yield return new WaitForSeconds(0.35f);
                                 creditImage.SetActive(false);
@@ -393,7 +946,7 @@ public class MainGameplaySabacc : MonoBehaviour
                                 {
                                     players[tempPlayer].PlayBad();
                                 }
-                                yield return new WaitForSeconds(1f);
+                                yield return new WaitForSeconds(0.55f);
 
                                 Debug.Log("Fold choice was chosen");
                                 gameInformation.text = players[tempPlayer].thisPlayerName + " has folded!";
@@ -411,7 +964,7 @@ public class MainGameplaySabacc : MonoBehaviour
                             }
 
                             buttonPressed = false;
-                            yield return new WaitForSeconds(2f);
+                            yield return new WaitForSeconds(1.5f);
                             tempPlayer = MoveOntoNextPlayer(tempPlayer);
                         }
                         else
@@ -426,7 +979,7 @@ public class MainGameplaySabacc : MonoBehaviour
                 }
 
                 gameInformation.text = "Now we are on the Trading Round!";
-                yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(0.35f);
 
                 // trading round
                 tempPlayer = playerWhoStarts;
@@ -450,13 +1003,13 @@ public class MainGameplaySabacc : MonoBehaviour
                             GetBestAITradeOption(players[tempPlayer]);
                         }
 
-                        yield return new WaitForSeconds(0.5f);
+                        yield return new WaitForSeconds(0.35f);
 
                         if (players[tempPlayer].tradeChoice == Player.TradingChoice.ALDERAAN && firstRound == true)
                         {
                             players[tempPlayer].tradeChoice = Player.TradingChoice.STAND;
                             gameInformation.text = players[index].thisPlayerName + " chose ALDERAAN on the FIRST TURN, they will STAND instead!";
-                            yield return new WaitForSeconds(3f);
+                            yield return new WaitForSeconds(2f);
                         }
 
                         // check for what the betChoice is for the current player and do the thing
@@ -478,7 +1031,7 @@ public class MainGameplaySabacc : MonoBehaviour
                         {
                             
                             gameInformation.text = players[tempPlayer].thisPlayerName + " has chosen to trade a card!";
-                            yield return new WaitForSeconds(0.5f);
+                            yield return new WaitForSeconds(0.45f);
 
                             discardOn = true;
                             if (players[tempPlayer].playerType == Player.PlayerType.PLAYER)
@@ -495,14 +1048,14 @@ public class MainGameplaySabacc : MonoBehaviour
                             else
                             {
                                 int tempCardToDiscard = 0;
-                                int highestCardValue = players[tempPlayer].cardHand[0].cardValue;
+                                int highestCardValue = players[tempPlayer].cardHand[0].ReturnCardValue();
 
                                 for (int tempIndex = 0; tempIndex < players[tempPlayer].cardHand.Count; tempIndex++)
                                 {
-                                    if (players[tempPlayer].cardHand[tempIndex].cardValue >= highestCardValue)
+                                    if (players[tempPlayer].cardHand[tempIndex].ReturnCardValue() >= highestCardValue)
                                     {
                                         tempCardToDiscard = tempIndex;
-                                        highestCardValue = players[tempPlayer].cardHand[tempIndex].cardValue;
+                                        highestCardValue = players[tempPlayer].cardHand[tempIndex].ReturnCardValue();
                                     }
                                 }
 
@@ -518,7 +1071,7 @@ public class MainGameplaySabacc : MonoBehaviour
                         else if (players[tempPlayer].tradeChoice == Player.TradingChoice.STAND)
                         {
                             gameInformation.text = players[tempPlayer].thisPlayerName + " has chosen to stand!";
-                            yield return new WaitForSeconds(0.5f);
+                            yield return new WaitForSeconds(0.45f);
 
                             
                         }
@@ -672,13 +1225,13 @@ public class MainGameplaySabacc : MonoBehaviour
                         creditImage.SetActive(false);
 
                         players[winningPlayer].credits = players[winningPlayer].credits + sabaccPot.WonPot();
-                        sabaccPot.credit_total.text = "" + 0;
+                        sabaccPot.creditTotal.text = "" + 0;
 
                         HandPotAnimation(players[winningPlayer], handPot);
                         yield return new WaitForSeconds(0.35f);
                         creditImage.SetActive(false);
                         players[winningPlayer].credits = players[winningPlayer].credits + handPot.WonPot();
-                        handPot.credit_total.text = "" + 0;
+                        handPot.creditTotal.text = "" + 0;
 
                         gameInformation.text = players[winningPlayer].thisPlayerName + " wins with " + players[winningPlayer].handValue + " which is a sabacc!";
                         yield return new WaitForSeconds(6f);
@@ -692,7 +1245,7 @@ public class MainGameplaySabacc : MonoBehaviour
                         yield return new WaitForSeconds(1f);
 
                         players[winningPlayer].credits = players[winningPlayer].credits + handPot.WonPot();
-                        handPot.credit_total.text = "" + 0;
+                        handPot.creditTotal.text = "" + 0;
                         HandPotAnimation(players[winningPlayer], handPot);
                         yield return new WaitForSeconds(0.35f);
                         creditImage.SetActive(false);
@@ -798,395 +1351,14 @@ public class MainGameplaySabacc : MonoBehaviour
                 }
                 
             }
-            
-            
             // exits out of loop where Game Winning Screen is displayed
         }
         DisplayGameWinningScreen(players[playerWhoWonIndex]);
         // from here player can choose to exit or restart the level
     }
 
-    private void HandPotAnimation(Player player, GamePot potToBetTo)
-    {
-        creditWinClip.GetComponent<AudioSource>().Play();
-        creditImage.transform.position = new Vector3(potToBetTo.credit_total.rectTransform.position.x, potToBetTo.credit_total.rectTransform.position.y, potToBetTo.credit_total.rectTransform.position.z);
-        creditImage.SetActive(true);
-        creditImage.transform.DOMove(new Vector2(player.GetCreditText().rectTransform.position.x, player.GetCreditText().rectTransform.position.y), 0.35f);
-    }
-
-    private void SabaccPotAnimation(Player player, GamePot potToBetTo)
-    {
-        creditWinClip.GetComponent<AudioSource>().Play();
-        creditImage.transform.position = new Vector3(potToBetTo.credit_total.rectTransform.position.x, potToBetTo.credit_total.rectTransform.position.y, potToBetTo.credit_total.rectTransform.position.z);
-        creditImage.SetActive(true);
-        creditImage.transform.DOMove(new Vector2(player.GetCreditText().rectTransform.position.x, player.GetCreditText().rectTransform.position.y), 0.35f);
-    }
-
-    public void PickedCard()
-    {
-        pickedCardToDiscard = true;
-    }
-
-    private void BetAnimation(Player player, GamePot potToBetTo)
-    {
-        creditExchangeClip.GetComponent<AudioSource>().Play();
-        creditImage.transform.position = new Vector3(player.GetCreditText().rectTransform.position.x, player.GetCreditText().rectTransform.position.y, player.GetCreditText().rectTransform.position.z);
-        creditImage.SetActive(true);
-        creditImage.transform.DOMove(new Vector2(potToBetTo.credit_total.rectTransform.position.x, potToBetTo.credit_total.rectTransform.position.y), 0.35f);
-    }
-
     private void UpdateTotalAmountBetted(Player player, int totalBetted)
     {
         player.amountBettedThisRound = player.amountBettedThisRound + totalBetted;
-    }
-
-    private void DisplayGameWinningScreen(Player player)
-    {
-        if(player.hasVocalQueues)
-        {
-            player.PlayVictory();
-        }
-        playerWinsText.text = player.thisPlayerName + " wins!";
-        gameOverScreen.GetComponent<CanvasGroup>().DOFade(1, 1f);
-        gameOverScreen.GetComponent<CanvasGroup>().interactable = true;
-        gameOverScreen.GetComponent<CanvasGroup>().blocksRaycasts = true;
-    }
-
-    public void ButtonPressed()
-    {
-        buttonPressed = true;
-    }
-
-    private void DealCard(Player player)
-    {
-        player.cardHand.Add(topOfDeck);
-
-
-        topDeckImage.rectTransform.DOMove(new Vector2(player.handLocation.transform.position.x, player.handLocation.transform.position.y), 0.35f);
-
-        addCardClip.GetComponent<AudioSource>().Play();
-    }
-
-    private void DealCardPart2(Player player)
-    {
-        // from DealCardAnimation
-        topDeckImage.rectTransform.position = deckVector3.transform.position;
-        topDeckImage.enabled = true;
-
-        deckTopValue = deckTopValue - 1;
-        topOfDeck = currentDeck[deckTopValue];
-        // set this to cardFace to see image of what card to be next
-        topDeckImage.sprite = topOfDeck.cardBack;
-
-        player.UpdateCurrentCardHand();
-    }
-    
-    private void RollDice()
-    {
-        sabaccDice.RollDice();
-    }
-
-    private void BombOut(Player player)
-    {
-        int bombOutAmount = handPot.pot_total / 10;
-
-        if(bombOutAmount > player.credits)
-        {
-            bombOutAmount = player.credits;
-        }
-
-        player.BetChips(bombOutAmount, sabaccPot);
-    }
-
-    private void RevealPlayerHand(Player player)
-    {
-        player.revealCards = true;
-        player.UpdateCurrentCardHand();
-        cardFlipClip.GetComponent<AudioSource>().Play();
-    }
-
-    private void HidePlayerHand(Player player)
-    {
-        player.revealCards = false;
-        player.UpdateCurrentCardHand();
-        cardFlipClip.GetComponent<AudioSource>().Play();
-    }
-
-    private void GetBestAITradeOption(Player player)
-    {
-        int random = Random.Range(1, 10);
-
-        if (player.distanceFrom23 > 15)
-        {
-            player.tradeChoice = Player.TradingChoice.TRADE;
-        }
-        else if(player.distanceFrom23 > 7)
-        {
-            player.tradeChoice = Player.TradingChoice.ADD;
-        }
-        else if(player.distanceFrom23 > 2)
-        {
-            player.tradeChoice = Player.TradingChoice.STAND;
-        }
-        else
-        {
-            if(random < 8)
-            {
-                player.tradeChoice = Player.TradingChoice.STAND;
-            }
-            else
-            {
-                player.tradeChoice = Player.TradingChoice.ALDERAAN;
-            }
-        }
-    }
-
-    private void AllInChoice(Player player, int currentAmountToBet)
-    {
-        //int callValue = currentAmountToBet - player.amountBettedThisRound;
-        player.BetChips(player.credits, handPot);
-
-        // MAKE SURE TO CHANGE THIS *******
-        UpdateTotalAmountBetted(player, player.credits);
-    }
-
-    private void RaiseChoice(Player player, int currentAmountToBet)
-    {
-        int callValue = currentAmountToBet - player.amountBettedThisRound;
-        player.BetChips(callValue, handPot);
-
-        // MAKE SURE TO CHANGE THIS *******
-        UpdateTotalAmountBetted(player, callValue);
-    }
-
-    private void CallChoice(Player player, int currentAmountToBet)
-    {
-        int callValue = currentAmountToBet - player.amountBettedThisRound;
-        player.BetChips(callValue, handPot);
-
-        // MAKE SURE TO CHANGE THIS *******
-        UpdateTotalAmountBetted(player, callValue);
-    }
-
-    private void GetBestAIBetOption(Player player, int currentAmountToBet)
-    {
-        int random = Random.Range(0, player.distanceFrom23 + 4);
-        int callValue = currentAmountToBet - player.amountBettedThisRound;
-
-        if(player.distanceFrom23 >= 20)
-        {
-            player.betChoice = Player.BettingChoice.FOLD;
-        }
-        else if(random == player.distanceFrom23 && player.distanceFrom23 >= 1 && player.distanceFrom23 <=5)
-        {
-            player.betChoice = Player.BettingChoice.RAISE;
-        }
-        else if(player.distanceFrom23 == 0 && random == 0)
-        {
-            player.betChoice = Player.BettingChoice.ALLIN;
-        }
-        else
-        {
-            if (callValue == 0)
-            {
-                player.betChoice = Player.BettingChoice.CHECK;
-            }
-            else
-            {
-                player.betChoice = Player.BettingChoice.CALL;
-            }
-        }
-    }
-
-    private void DisplayOptionsForRound(GameObject menu)
-    {
-        uiPrompt.GetComponent<AudioSource>().Play();
-        menu.GetComponent<CanvasGroup>().DOFade(1, 1f);
-        menu.GetComponent<CanvasGroup>().interactable = true;
-        menu.GetComponent<CanvasGroup>().blocksRaycasts = true;
-    }
-    
-    private void RemoveOptionsForRound(GameObject menu)
-    {
-        uiExit.GetComponent<AudioSource>().Play();
-        menu.GetComponent<CanvasGroup>().DOFade(0, 1f);
-        menu.GetComponent<CanvasGroup>().interactable = false;
-        menu.GetComponent<CanvasGroup>().blocksRaycasts = false;
-    }
-
-    public void DiscardCard(Player player, int cardIndexToDiscard)
-    {
-        // grab cardFace image so we can discard the card from the hand
-        Sprite cachedSprite = player.cardHand[cardIndexToDiscard].cardFace;
-
-        // grab the Vector 3 of the cardToDiscard
-        Vector3 cachedDiscardLocation = new Vector3(player.handLocation.transform.position.x, player.handLocation.transform.position.y, player.handLocation.transform.position.z);
-        cardToDiscard.transform.position = new Vector3(player.handLocation.transform.position.x, player.handLocation.transform.position.y, player.handLocation.transform.position.z);
-
-        // set the top_of_discard equal to the new card
-        topOfDiscard = player.cardHand[cardIndexToDiscard];
-
-        // removes the card from the hand
-        player.cardHand.RemoveAt(cardIndexToDiscard);
-
-        // updates the cards in the hand
-        player.UpdateCurrentCardHand();
-
-        // sets the card to Discard image = to the cached sprite
-        cardToDiscard.GetComponent<Image>().sprite = cachedSprite;
-
-        // sets it to true so it can be seen moving
-        cardToDiscard.SetActive(true);
-
-        // moves the card to the vector2 of the discard pile
-        cardToDiscard.transform.DOMove(new Vector2(discardVector3.transform.position.x, discardVector3.transform.position.y), 0.25f);
-
-        // waits for the given time then sets the discarded card to false and resets its position
-        StartCoroutine(DiscardCardAnimation(0.25f, cardIndexToDiscard, cachedDiscardLocation));
-
-        // plays discard sound
-        cardDiscardClip.GetComponent<AudioSource>().Play();
-
-        // sets the top of the discard pile to the new image
-        topDiscardImage.sprite = cachedSprite;
-
-        // changes the discard value, i think this is obselete. ** CAN REMOVE**
-        discardTopValue++;
-    }
-
-    IEnumerator DiscardCardAnimation(float seconds, int cardIndexToDiscard, Vector3 cachedDiscardLocation)
-    {
-        yield return new WaitForSeconds(seconds);
-
-        cardToDiscard.SetActive(false);
-        cardToDiscard.transform.position = cachedDiscardLocation;
-    }
-
-    private void PaySabaccPayment(Player player, int sabaccPayment)
-    {
-        // still need to add the animation
-        player.BetChips(sabaccPayment, sabaccPot);
-        
-    }
-
-    private void PayBlind(Player player, int blindPayment)
-    {
-        // move the credit chip
-        // still need to add the animation
-        // reduce player chip count and add it to the pot
-        player.BetChips(blindPayment, handPot);
-    }
-
-    private int MoveOntoNextPlayer(int player)
-    {
-        int nextPlayer = player + 1;
-        if (nextPlayer >= players.Count)
-        {
-            nextPlayer = 0;
-        }
-        return nextPlayer;
-    }
-
-    public void InitializeDeck()
-    {
-        int index;
-        for( index = 0; index < deckSize; index++ )
-        {
-            // assigns every currentDeck index = to the preSabaccDeck
-            currentDeck[index] = preSabaccDeck.GetIndex(index);
-        }
-
-        // set to cardFace to see if what the top card is
-        topDeckImage.sprite = currentDeck[deckSize - 1].cardBack;
-        deckTopValue = deckSize - 1;
-        topOfDeck = currentDeck[deckSize - 1];
-    }
-
-    public IEnumerator ShuffleDeck()
-    {
-        int randomizedValue, index;
-
-        int[] alreadyGeneratedValues = new int[deckSize];
-
-        // wait to not immidiately 'shuffle the deck'
-        yield return new WaitForSeconds(2f);
-
-        // if there is a card in the discard pile
-        if(discardTopValue > 0)
-        {
-            Vector3 cachedDiscardLocation = new Vector3(topDiscardImage.transform.position.x, topDiscardImage.transform.position.y, topDiscardImage.transform.position.z);
-            cardDiscardClip.GetComponent<AudioSource>().Play();
-            topDiscardImage.transform.DOMove(new Vector2(deckVector3.transform.position.x, deckVector3.transform.position.y), 0.45f);
-            topDiscardImage.enabled = false;
-
-            yield return new WaitForSeconds(0.45f);
-
-            topDiscardImage.enabled = true;
-            topDiscardImage.sprite = currentDeck[deckSize - 1].cardBack;
-            topDiscardImage.transform.position = cachedDiscardLocation;
-        }
-
-        for (index = 0; index< players.Count; index++)
-        {
-            if(players[index].cardHand.Count > 0)
-            {
-                Vector3 cachedCardLocation = new Vector3(cardToDiscard.transform.position.x, cardToDiscard.transform.position.y, cardToDiscard.transform.position.z);
-                cardDiscardClip.GetComponent<AudioSource>().Play();
-
-                // activate the card to discard and move it to the current players hand
-                cardToDiscard.SetActive(true);
-                cardToDiscard.transform.position = new Vector3(players[index].handLocation.transform.position.x, players[index].handLocation.transform.position.y, players[index].handLocation.transform.position.z);
-
-                // moves card to the deck
-                cardToDiscard.transform.DOMove(new Vector2(deckVector3.transform.position.x, deckVector3.transform.position.y), 0.45f);
-                yield return new WaitForSeconds(0.45f);
-
-                cardToDiscard.SetActive(false);
-                cardToDiscard.transform.position = cachedCardLocation;
-
-                // clear card hand
-                players[index].cardHand.Clear();
-
-                // Updates each players current card hand
-                // pass in the player index so in Update Current Card Hand
-                // I can set panel = players[index].handLocation
-                // and current hand = to players[index].cardHand
-                players[index].UpdateCurrentCardHand();
-                //GetComponent<PlayerHand>().UpdateCurrentCardHand(players[index]);
-            }
-        }
-
-        Card[] tempDeck = currentDeck;
-        discardPile = new Card[deckSize];
-        currentDeck = new Card[deckSize];
-
-        // I clear each hand in the above step
-
-        // play shuffle sound
-        shuffleCardsClip.GetComponent<AudioSource>().Play();
-
-        // rotates back image of deck to give impression of shuffling
-        backgroundDeckImage.transform.DORotate(new Vector3(backgroundDeckImage.transform.rotation.x, backgroundDeckImage.transform.rotation.y, backgroundDeckImage.transform.rotation.z + 360), 1f, RotateMode.FastBeyond360).SetRelative(true);
-
-        for(index = 0; index < deckSize; index++)
-        {
-            alreadyGeneratedValues[index] = deckSize;
-        }
-
-        index = 0;
-        while(index < deckSize)
-        {
-            randomizedValue = Random.Range(0, deckSize);
-            if(!alreadyGeneratedValues.Contains<int>(randomizedValue))
-            {
-                alreadyGeneratedValues[index] = randomizedValue;
-                currentDeck[index] = tempDeck[randomizedValue];
-                index++;
-            }
-        }
-
-        topDeckImage.sprite = currentDeck[deckSize - 1].cardBack;
-        deckTopValue = deckSize - 1;
-        topOfDeck = currentDeck[deckSize - 1];
     }
 }

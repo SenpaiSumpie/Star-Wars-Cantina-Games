@@ -12,7 +12,7 @@ public class Dice : MonoBehaviour
     [SerializeField] GameObject diceNumberOne;
     [SerializeField] GameObject diceNumberTwo;
 
-    // dice images
+    // dice images (sides of the dice)
     [SerializeField] Sprite diceFaceOne;
     [SerializeField] Sprite diceFaceTwo;
     [SerializeField] Sprite diceFaceThree;
@@ -29,9 +29,12 @@ public class Dice : MonoBehaviour
 
     private void Start()
     {
-        sabaccShiftText.alpha = 0;
+        sabaccShiftText.alpha = 0;                  // Sabacc shift will be 1 if there is a sabacc shift
     }
 
+    /*
+     * Simulates rolling two dice and displays the outcome
+     */
     [Button("Roll Dice")]
     public void RollDice()
     {
@@ -54,7 +57,6 @@ public class Dice : MonoBehaviour
         DisplayCorrectImage(firstDiceRoll, diceNumberOne);
         DisplayCorrectImage(secondDiceRoll, diceNumberTwo);
 
-
         // check for sabacc shift, dice1 == dice2
         if ( firstDiceRoll == secondDiceRoll )
         {
@@ -63,6 +65,9 @@ public class Dice : MonoBehaviour
         }
     }
 
+    /*
+     * Displays the correct 'face' of the dice roll
+     */
     void DisplayCorrectImage(int valueRolled, GameObject whichDice)
     {
         // sets the given game object to the correct dice face

@@ -9,7 +9,7 @@ using Sirenix.OdinInspector;
 
 public class MainMenuManager : MonoBehaviour
 {
-    // all menu canvas groups
+    // all menu canvas groups, not necessary but keeping for now
     [Title("Menu Canvas Groups")]
     [SerializeField] CanvasGroup mainMenu;
     [SerializeField] CanvasGroup singleplayerMenu;
@@ -28,7 +28,7 @@ public class MainMenuManager : MonoBehaviour
     void Start()
     {
         // main menu's initial load in is different
-        mainMenu.DOFade(1, 3f);
+        mainMenu.DOFade(1, 1.5f);
         mainMenu.interactable = true;
         mainMenu.blocksRaycasts = true;
 
@@ -39,63 +39,24 @@ public class MainMenuManager : MonoBehaviour
 
     public void DeactivateCanvasGroup(CanvasGroup givenCanvas)
     {
-        givenCanvas.DOFade(0, 1f);
+        givenCanvas.DOFade(0, 0.75f);
         givenCanvas.interactable = false;
         givenCanvas.blocksRaycasts = false;
     }
 
     public void ActivateCanvasGroup(CanvasGroup givenCanvas)
     {
-        givenCanvas.DOFade(1, 1f);
+        givenCanvas.DOFade(1, 0.75f);
         givenCanvas.interactable = true;
         givenCanvas.blocksRaycasts = true;
     }
 
     /*
-     * Main Menu Functions
+     * Main Menu functions
      */
-    public void ToSingleplayerFromMainMenu()
-    {
-        DeactivateCanvasGroup(mainMenu);
-        ActivateCanvasGroup(singleplayerMenu);
-    }
-
-    public void ToMultiplayerFromMainMenu()
-    {
-        DeactivateCanvasGroup(mainMenu);
-        ActivateCanvasGroup(multiplayerMenu);
-    }
-
-    public void ToProfileFromMainMenu()
-    {
-        DeactivateCanvasGroup(mainMenu);
-        ActivateCanvasGroup(profileMenu);
-    }
-
-    public void ToOptionsFromMainMenu()
-    {
-        DeactivateCanvasGroup(mainMenu);
-        ActivateCanvasGroup(optionsMenu);
-    }
-
     public void QuitMainMenu()
     {
         Application.Quit();
-    }
-
-    /*
-     * Singleplayer Functions
-     */
-    public void ToMainMenuFromSingleplayer()
-    {
-        DeactivateCanvasGroup(singleplayerMenu);
-        ActivateCanvasGroup(mainMenu);
-    }
-
-    public void ToPreSoloSabaccFromSingleplayer()
-    {
-        DeactivateCanvasGroup(singleplayerMenu);
-        ActivateCanvasGroup(preSoloSabaccMenu);
     }
 
     /*
@@ -106,42 +67,9 @@ public class MainMenuManager : MonoBehaviour
         SceneManager.LoadScene(3);
     }
 
-    public void LoadHowToPlayPreSoloSabacc()
-    {
-        DeactivateCanvasGroup(preSoloSabaccMenu);
-        ActivateCanvasGroup(preSoloSabaccHowToPlayMenu);
-    }
-
-    public void BackToPreSoloSabaccFromHowToPlay()
-    {
-        DeactivateCanvasGroup(preSoloSabaccHowToPlayMenu);
-        ActivateCanvasGroup(preSoloSabaccMenu);
-    }
-
-    public void ToSinglePlayerFromPreSoloSabacc()
-    {
-        DeactivateCanvasGroup(preSoloSabaccMenu);
-        ActivateCanvasGroup(singleplayerMenu);
-    }
-
-    /*
-     * Multiplayer Functions
-     */
-    public void ToMainMenuFromMultiplayer()
-    {
-        DeactivateCanvasGroup(multiplayerMenu);
-        ActivateCanvasGroup(mainMenu);
-    }
-
     /*
      * Profile Functions
      */
-    public void ToMainMenuFromProfile()
-    {
-        DeactivateCanvasGroup(profileMenu);
-        ActivateCanvasGroup(mainMenu);
-    }
-
     public void SetPlayerName(string newPlayerName)
     {
         GetComponent<PlayerProfile>().SetPlayerName(newPlayerName);
@@ -158,5 +86,4 @@ public class MainMenuManager : MonoBehaviour
         GetComponent<PlayerProfile>().SetPlayerImageLeft();
         playerAvatarImage.sprite = GetComponent<PlayerProfile>().GetPlayerImage();
     }
-
 }

@@ -6,35 +6,43 @@ using UnityEngine;
 
 public class GamePot : MonoBehaviour
 {
-    [SerializeField] public string pot_name;
-    [SerializeField] public int pot_total;
-    [SerializeField] TextMeshProUGUI name_of_pot;
-    [SerializeField] public TextMeshProUGUI credit_total;
+    [SerializeField] public string potName;                        // name of the credit game pot
+    [SerializeField] public int potTotal;                          // amount of credits in the game pot
+    [SerializeField] TextMeshProUGUI nameOfPot;                    // game object for displaying the game pot name
+    [SerializeField] public TextMeshProUGUI creditTotal;           // game object for displaying the game pot credit total
+
     // Start is called before the first frame update
     void Start()
     {
-        name_of_pot.text = pot_name;
-        //pot_total = 0;
-        //credit_total.text = pot_total.ToString();
+        // set the text to the pot's name
+        nameOfPot.text = potName;
     }
 
     void Update()
     {
-        if(pot_total > 0)
+        // if potTotal is greater or equal to zero then it updates its credit total
+        if(potTotal >= 0)
         {
-            credit_total.text = pot_total.ToString();
+            creditTotal.text = potTotal.ToString();
         }
     }
 
-    public void AddToPot(int total_to_add)
+    /*
+     * adds amount given to the pot total
+     */
+    public void AddToPot(int totalToAdd)
     {
-        pot_total = pot_total + total_to_add;
+        potTotal = potTotal + totalToAdd;
     }
 
+    /*
+     * Removes contents of pot total and returns them for
+     * the player to 'win'
+     */
     public int WonPot()
     {
-        int temp_pot_total = pot_total;
-        pot_total = 0;
-        return temp_pot_total;
+        int tempPotTotal = potTotal;
+        potTotal = 0;
+        return tempPotTotal;
     }
 }

@@ -4,6 +4,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/*
+ * First iteration of MAINGAMEPLAYSABACC.cs <- this is the current game
+ */
 public class SabaccGame : MonoBehaviour
 {
     [SerializeField] Deck receivedDeck;
@@ -51,13 +54,13 @@ public class SabaccGame : MonoBehaviour
     {
         if(leftCard.sprite == null)
         {
-            leftCard.sprite = topOfDeck.cardFace;
+            leftCard.sprite = topOfDeck.ReturnCardFace();
             placeHolderDeckTopValue--;
             topOfDeck = currentDeck[placeHolderDeckTopValue];
         }   
         else if( rightCard.sprite == null)
         {
-            rightCard.sprite = topOfDeck.cardFace;
+            rightCard.sprite = topOfDeck.ReturnCardFace();
             placeHolderDeckTopValue--;
             topOfDeck = currentDeck[placeHolderDeckTopValue];
         }
@@ -70,13 +73,13 @@ public class SabaccGame : MonoBehaviour
     public void UpdateDiscardPile()
     {
         topOfDiscard = discardPile[placeHolderDiscardTopValue];
-        topDiscardImage.sprite = topOfDiscard.cardFace;
+        topDiscardImage.sprite = topOfDiscard.ReturnCardFace();
     }
 
     public void UpdateCurrentDeck()
     {
         Debug.Log("CURRENT PLACE HOLDER VALUE" + placeHolderDeckTopValue);
-        topDeckImage.sprite = currentDeck[placeHolderDeckTopValue].cardFace;
+        topDeckImage.sprite = currentDeck[placeHolderDeckTopValue].ReturnCardFace();
     }
 
     public void NoMoreCardsInDeck()
@@ -91,13 +94,13 @@ public class SabaccGame : MonoBehaviour
 
     public void DealTwoCards()
     {
-        leftCard.sprite = topOfDeck.cardFace;
+        leftCard.sprite = topOfDeck.ReturnCardFace();
 
         placeHolderDeckTopValue--;
 
         topOfDeck = currentDeck[placeHolderDeckTopValue];
 
-        rightCard.sprite = topOfDeck.cardFace;
+        rightCard.sprite = topOfDeck.ReturnCardFace();
 
         placeHolderDeckTopValue--;
 
@@ -106,11 +109,7 @@ public class SabaccGame : MonoBehaviour
 
     public void DiscardLeftCard()
     {
-        //discardPile[]
-        //discardPileSize++;
-        //placeHolderDiscardTopValue++;
         placeHolderDeckTopValue--;
-
         leftCard.enabled = false;
         leftCard.sprite = null;
         UpdateDiscardPile();
@@ -118,10 +117,8 @@ public class SabaccGame : MonoBehaviour
 
     public void DiscardRightCard()
     {
-        //discardPileSize++;
         placeHolderDiscardTopValue++;
         placeHolderDeckTopValue--;
-
         rightCard.sprite = null;
         UpdateDiscardPile();
     }
@@ -129,17 +126,9 @@ public class SabaccGame : MonoBehaviour
     public void InitializeDeck()
     {
         int index;//, generatedValue;
-        //int[] generatedValues = new int[deckSize];
 
         for( index = 0; index < deckSize; index++ )
         {
-            //generatedValue = Random.Range(0, deckSize);
-           
-            //while(generatedValues.Contains<int>(generatedValue))
-            //{
-            //    generatedValue = Random.Range(0, deckSize);
-            //}
-            //generatedValues[index] = generatedValue;
             currentDeck[index] = receivedDeck.GetIndex(index);//should be generatedValue
         }
 
@@ -184,22 +173,6 @@ public class SabaccGame : MonoBehaviour
             }
             index++;
         }
-
-        /*
-        for (index = 0; index < deckSize; index++)
-        {
-            generatedValue = Random.Range(0, deckSize - 1);
-
-            while(generatedValues.Contains<int>(generatedValue))
-            {
-                generatedValue = Random.Range(0, deckSize - 1);
-            }
-
-            generatedValues[index] = generatedValue;
-
-            currentDeck[index] = tempDeck[generatedValue];
-        }
-        */
         topOfDeck = currentDeck[deckSize - 1];
     }
 }
